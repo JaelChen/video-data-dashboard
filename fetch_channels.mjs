@@ -1,8 +1,8 @@
 // 用 ego-browser 抓视频号助手近 30 天视频的数据，存到 data/raw/channels/。
-// 运行：通过 ./update.sh（ego-browser nodejs 的工作目录是 /，读不到环境变量，所以由它注入项目路径 ROOT）
+// 运行：通过 update.py（ego-browser nodejs 的工作目录是 /，读不到环境变量，所以由它把项目路径 ROOT 写在脚本开头）
 // 先点开「单篇视频」让页面发一次 post_list，记下它的请求头和参数，再用同样的头在页面里调列表和单条详情接口。
 const fs = await import("node:fs/promises");
-const RAW = ROOT + "data/raw/channels/"; // ROOT 由 update.sh 在脚本开头注入
+const RAW = ROOT + "data/raw/channels/"; // ROOT 由 update.py 在脚本开头注入
 await fs.mkdir(RAW, { recursive: true });
 
 const task = await taskSpace("multi-platform video data");

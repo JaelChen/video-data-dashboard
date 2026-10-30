@@ -1,6 +1,6 @@
 #!/bin/zsh
 # 由 launchd 每 30 分钟叫一次（睡眠期间错过的，开盖后会补叫一次）；
-# 每天只真正跑一次 update.sh，9 点前不跑（平台数据隔天才更新）。失败时弹系统通知。
+# 每天只真正跑一次 update.py，9 点前不跑（平台数据隔天才更新）。失败时弹系统通知。
 HERE="${0:A:h}"
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 STAMP="$HERE/data/.last_ok"
@@ -25,7 +25,7 @@ notify() { osascript -e "display notification \"$1\" with title \"视频数据�
     curl -s -o /dev/null -m 3 https://www.baidu.com && break
     sleep 3
   done
-  if "$HERE/update.sh"; then
+  if python3 "$HERE/update.py"; then
     echo "$TODAY" > "$STAMP"
     echo "== $(date '+%F %T') 成功"
     "$HERE/backup.sh" || notify "数据已更新，但备份到 iCloud 失败。详情见 data/update.log"

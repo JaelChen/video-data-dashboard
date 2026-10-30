@@ -22,33 +22,40 @@
 
 ## 快速开始
 
-只想先看看效果的话，不用装任何东西：
+Mac 和 Windows 都能用。主要的命令差别是：Mac 上写 `python3`，Windows 上写 `py`。
 
-```bash
-./preview.sh
-```
+| | Mac | Windows |
+|---|---|---|
+| 需要的软件 | [ego lite](https://lite.ego.app/)、python3（装过 Xcode 命令行工具就有） | [ego lite](https://lite.ego.app/)、[Python 3](https://www.python.org/downloads/)（安装时勾选 Add to PATH） |
+| 先看示例效果 | `python3 preview.py` | `py preview.py` |
+| 手动更新数据 | `python3 update.py` | `py update.py` |
+| 每天自动更新 | launchd，开盖后自动补跑，失败弹通知 | 任务计划程序，错过的会补跑 |
+| 自动备份 | 每天备份到 iCloud | 暂无，需手动复制 `data\videos.db` |
 
-打开 http://localhost:8765 就能看到示例数据的看板。
+只想先看看效果的话，下载后运行 preview，再打开 http://localhost:8765 ，就能看到用示例数据画出的看板。
 
 要接上自己的数据：
 
-1. 安装 [ego lite](https://lite.ego.app/)，完成首次引导后，终端里应该就能运行 `ego-browser`。
+1. 安装 ego lite，完成首次引导。之后在终端（Windows 上用 PowerShell）里输入 `ego-browser`，应该能看到它的帮助信息。
 2. 在 ego lite 里登录这三个后台：小红书创作服务平台、抖音创作者中心、视频号助手。
-3. 在项目目录运行 `./update.sh`。它会依次抓三个平台，写进 `data/videos.db`，生成 `dashboard/data.js`。
-4. 运行 `./preview.sh` 查看。第一次运行时如果还没有 `data.js`，它会用示例数据；有了真实数据之后会直接显示你自己的数据。
+3. 在项目目录运行 update。它会依次抓三个平台，写进 `data/videos.db`，生成 `dashboard/data.js`。
+4. 再运行 preview，看到的就是你自己的数据了。
 
-需要 macOS 和 python3（装过 Xcode 命令行工具就有），不需要安装第三方 Python 包。
+不需要安装任何第三方 Python 包。每天自动运行的设置方法分 Mac 和 Windows 两种，都写在 [自动化流程](docs/automation.md) 里。
+
+Windows 流程作者还没有在真机上完整测试过，遇到问题欢迎提 issue。
 
 ## 文件说明
 
 | 文件 | 作用 |
 |---|---|
 | `fetch.mjs`、`fetch_douyin.mjs`、`fetch_channels.mjs` | 分别抓小红书、抖音、视频号，原始数据存到 `data/raw/` |
-| `ingest.py` | 写进 SQLite、配对作品、计算相对表现，导出看板数据 |
+| `ingest.py` | 写进 SQLite，配对作品，计算相对表现，导出看板数据 |
+| `update.py` | 一键更新：抓取、入库，可选上传到你自己的网站 |
+| `preview.py` | 在本地打开看板 |
 | `dashboard/index.html` | 看板页面，单文件，用 ECharts 画图 |
-| `update.sh` | 一键更新：抓取、入库，可选上传到你自己的网站 |
-| `daily.sh`、`backup.sh`、`launchd.plist.template` | 每天自动运行和备份，见 [自动化](docs/automation.md) |
-| `config.example.sh` | 可选配置：上传地址等，复制成 `config.sh` 后再改 |
+| `daily.sh`、`backup.sh`、`launchd.plist.template` | Mac 每天自动运行和 iCloud 备份 |
+| `config.example.env` | 可选配置，比如上传地址，复制成 `config.env` 再改 |
 
 ## 延伸阅读
 
@@ -59,7 +66,7 @@
 
 - 这个项目通过模拟人工打开后台页面来读数据。各平台改版后，抓取脚本可能需要跟着调整。抓取频率保持每天一次就够了。
 - 只读取你自己账号的数据，不发帖、不修改任何东西。
-- `data/`、`config.sh`、`.upload_key` 都在 `.gitignore` 里。如果你 fork 了这个仓库，不要把它们提交上去。
+- `data/`、`config.env`、`.upload_key` 都在 `.gitignore` 里。如果你 fork 了这个仓库，不要把它们提交上去。
 - 已知限制：小红书和抖音目前只抓列表的第一页（最近的作品）；视频号后台本身只给大约 6 个点的留存数据，所以它的曲线比较粗。
 
 ## License

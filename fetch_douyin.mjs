@@ -1,7 +1,7 @@
 // 用 ego-browser 抓抖音创作者中心近 30 天视频作品的数据，存到 data/raw/douyin/。
-// 运行：通过 ./update.sh（ego-browser nodejs 的工作目录是 /，读不到环境变量，所以由它注入项目路径 ROOT）。接口带页面签名，走页面加载 + CDP 读响应体。
+// 运行：通过 update.py（ego-browser nodejs 的工作目录是 /，读不到环境变量，所以由它把项目路径 ROOT 写在脚本开头）。接口带页面签名，走页面加载 + CDP 读响应体。
 const fs = await import("node:fs/promises");
-const RAW = ROOT + "data/raw/douyin/"; // ROOT 由 update.sh 在脚本开头注入
+const RAW = ROOT + "data/raw/douyin/"; // ROOT 由 update.py 在脚本开头注入
 await fs.mkdir(RAW, { recursive: true });
 
 const task = await taskSpace("multi-platform video data");

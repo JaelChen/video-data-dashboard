@@ -1,8 +1,8 @@
 // 用 ego-browser 抓取小红书创作者后台的视频笔记数据，存到 data/raw/。
-// 运行：通过 ./update.sh（ego-browser nodejs 的工作目录是 /，读不到环境变量，所以由它注入项目路径 ROOT）
+// 运行：通过 update.py（ego-browser nodejs 的工作目录是 /，读不到环境变量，所以由它把项目路径 ROOT 写在脚本开头）
 // 接口需要页面签名，直接 fetch 会 406，所以走页面加载 + CDP 读响应体。
 const fs = await import("node:fs/promises");
-const RAW = ROOT + "data/raw/"; // ROOT 由 update.sh 在脚本开头注入
+const RAW = ROOT + "data/raw/"; // ROOT 由 update.py 在脚本开头注入
 await fs.mkdir(RAW, { recursive: true });
 
 const task = await taskSpace("multi-platform video data");

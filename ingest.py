@@ -47,7 +47,7 @@ def num(v, scale=1):
 
 
 def load(p):
-    return json.loads(p.read_text())
+    return json.loads(p.read_text(encoding="utf-8"))
 
 
 def migrate(con):
@@ -260,9 +260,9 @@ def export(con):
     works.sort(key=lambda w: -w["first_post_time"])
     out = {"generated_at": int(time.time() * 1000), "platforms": PLATFORMS, "baseline": baseline, "works": works}
     (ROOT / "dashboard").mkdir(exist_ok=True)
-    (ROOT / "dashboard" / "data.js").write_text("window.VIDEO_DATA = " + json.dumps(out, ensure_ascii=False) + ";\n")
-    # 上传到网站数据库用的同一份数据（update.sh 读它）
-    (ROOT / "data" / "video_data.json").write_text(json.dumps(out, ensure_ascii=False))
+    (ROOT / "dashboard" / "data.js").write_text("window.VIDEO_DATA = " + json.dumps(out, ensure_ascii=False) + ";\n", encoding="utf-8")
+    # 上传到网站数据库用的同一份数据（update.py 读它）
+    (ROOT / "data" / "video_data.json").write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
     return out
 
 

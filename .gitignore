@@ -1,7 +1,7 @@
 # 个人数据和密钥，永远不进仓库
 data/
 .upload_key
-config.sh
+config.env
 dashboard/data.js
 # 个人用的文件
 AGENTS.md

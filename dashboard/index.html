@@ -468,7 +468,7 @@ function route() {
   ({ overview: renderOverview, compare: renderCompare, diagnose: renderDiagnose, patterns: renderPatterns })[v]();
   Object.values(charts).forEach((c) => c && c.resize());
 }
-if (!D.works.length) document.querySelector("main").innerHTML = '<p class="empty">还没有数据，先运行 update.sh</p>';
+if (!D.works.length) document.querySelector("main").innerHTML = '<p class="empty">还没有数据，先运行 update.py</p>';
 else {
   pick.innerHTML = D.works.map((w) => `<option value="${esc(w.work_id)}">${esc(short(w.title, 26))}（${w.posts.map((p) => PF[p.platform]).join("·")}）</option>`).join("");
   pick.value = (D.works.find((w) => w.posts.length > 1 && w.posts.some((p) => p.retention.length > 1)) || D.works[0]).work_id;
