@@ -1,0 +1,9 @@
+# 复制成 config.sh 再改。全部留空 = 只在本地更新数据，用 ./preview.sh 看看板。
+
+# 上传到你自己网站的接口（POST JSON，Authorization: Bearer <密钥>），密钥单独放在 .upload_key 文件里
+UPLOAD_URL=""
+# 上传成功后提示的看板地址，可不填
+SITE_URL=""
+# 看板页面同时部署在另一个 Git 仓库里时填：仓库路径和页面在仓库里的位置
+SITE_REPO=""
+SITE_PAGE=""

@@ -1,0 +1,13 @@
+# 个人数据和密钥，永远不进仓库
+data/
+.upload_key
+config.sh
+dashboard/data.js
+# 个人用的文件
+AGENTS.md
+后台改版说明.md
+*.plist
+dashboard/publish.html
+.claude/
+__pycache__/
+.DS_Store

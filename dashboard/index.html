@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>视频数据分析</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<script src="data.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* 设计规范见 docs/design.md：白底、浅灰卡片套白色面板、墨绿胶囊导航 */
+:root {
+  color-scheme: light;
+  --bg: #ffffff; --card: #f4f5f3; --inner: #ffffff; --line: #e8eae6;
+  --fg: #131713; --muted: #4f564f; --dim: #8a908a;
+  --ink: #16211a; --green: #2f7d4f; --mint: #8fdc9e; --mint-bg: #d9f5de; --warn: #d2593f;
+  --radius: 22px; --radius-in: 16px;
+  --sans: "Plus Jakarta Sans", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  /* 图表脚本读取的别名 */
+  --font: var(--sans); --surface-1: var(--inner); --border: var(--line); --grid: var(--line);
+  --text-primary: var(--fg); --text-secondary: var(--muted); --text-muted: var(--dim);
+  --s1: var(--green); --s2: var(--mint); --critical: var(--warn);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body { font: 14px/1.6 var(--sans); color: var(--fg); background: var(--bg); -webkit-font-smoothing: antialiased; }
+a { color: var(--fg); text-decoration: none; }
+::selection { background: var(--mint-bg); color: var(--ink); }
+
+/* 骨架：左侧导航 + 主区 */
+.shell { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh; }
+.side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 4px; padding: 30px 18px 22px; }
+.brand { padding: 0 12px 22px; }
+.brand-name { font: 700 24px/1 var(--sans); letter-spacing: -0.02em; color: var(--ink); }
+.brand-sub { font-size: 12px; color: var(--dim); margin-top: 6px; }
+.side .group { font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--dim); padding: 14px 16px 4px; }
+.side a.nav { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 99px; color: var(--muted); font-weight: 500; transition: background .15s, color .15s; }
+.side a.nav:hover { background: var(--card); color: var(--fg); }
+.side a.nav.on { background: var(--ink); color: #fff; }
+.side a.nav svg { width: 16px; height: 16px; flex: none; }
+.side a:focus-visible, select:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.side .spacer { flex: 1; }
+.side a.jump { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-radius: var(--radius-in); background: linear-gradient(160deg, #eef1fb, #e3f6e7); color: var(--ink); font-weight: 600; }
+.side a.jump:hover { color: var(--green); }
+.side a.jump[hidden] { display: none; }
+
+main { padding: 30px 40px 80px; max-width: 1240px; width: 100%; min-width: 0; }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+.page-head > div { min-width: 0; }
+.eyebrow { font-size: 12px; font-weight: 500; color: var(--dim); }
+h1 { font: 600 30px/1.15 var(--sans); margin: 2px 0 0; letter-spacing: -0.02em; text-wrap: balance; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 24px; }
+.tag { padding: 2px 10px; border-radius: 99px; background: var(--mint-bg); color: var(--green); font-size: 12px; font-weight: 500; }
+select { font: 500 14px var(--sans); color: var(--fg); background: var(--inner) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M3 4.5l3 3 3-3' fill='none' stroke='%23131713' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 14px center; appearance: none; border: 1px solid var(--line); padding: 9px 38px 9px 16px; border-radius: 99px; max-width: 100%; }
+select:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--mint-bg); outline: none; }
+h2.sec { font: 600 17px var(--sans); margin: 34px 0 14px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+h2.sec .count { font: 600 12px var(--sans); color: var(--ink); background: var(--mint-bg); padding: 1px 9px; border-radius: 99px; }
+
+/* 指标卡：左上标签，左下大数字 */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.stat { display: flex; flex-direction: column; justify-content: space-between; min-height: 128px; padding: 20px 22px; border-radius: var(--radius); background: var(--card); }
+.stat .label { font-size: 13px; font-weight: 500; color: var(--muted); }
+.stat .value { font: 500 32px/1.1 var(--sans); letter-spacing: -0.02em; margin-top: 14px; font-variant-numeric: tabular-nums; }
+.stat .value small { font-size: 13px; font-weight: 500; color: var(--dim); margin-left: 4px; letter-spacing: 0; }
+.stat.accent { background: linear-gradient(160deg, #eef1fb, #e3f6e7); }
+.stat.accent .value { color: var(--ink); }
+
+/* 图表卡：浅灰卡片里套白色面板 */
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
+.span-12 { grid-column: span 12; } .span-8 { grid-column: span 8; } .span-6 { grid-column: span 6; } .span-4 { grid-column: span 4; } .span-3 { grid-column: span 3; }
+.card { background: var(--card); border-radius: var(--radius); padding: 8px; min-width: 0; display: flex; flex-direction: column; }
+.card.accent { background: linear-gradient(160deg, #eef1fb, #e3f6e7); }
+.card-head { padding: 12px 14px 12px; }
+.card-head h3 { font: 600 15px var(--sans); margin: 0; letter-spacing: -0.01em; }
+.card-head p { margin: 2px 0 0; font-size: 12px; color: var(--dim); }
+.panel { background: var(--inner); border-radius: var(--radius-in); padding: 14px 16px; flex: 1; min-width: 0; }
+.card.accent .panel { background: rgba(255,255,255,.7); }
+.chart { width: 100%; height: 300px; }
+.chart.tall { height: 340px; }
+.insight { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.insight li { font-size: 13px; color: var(--muted); }
+.insight b { color: var(--fg); font-weight: 600; }
+.panel + .panel { margin-top: 8px; flex: none; }
+
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+th { text-align: right; padding: 12px 14px; font-size: 12px; font-weight: 500; color: var(--dim); border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { text-align: right; padding: 13px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; white-space: normal; min-width: 200px; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: #fafbf9; }
+tr.sel td { background: var(--mint-bg) !important; }
+tbody tr[data-video=true] { cursor: pointer; }
+.table-panel { padding: 0; overflow-x: auto; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; background: var(--line); color: var(--muted); }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip.video { background: var(--mint-bg); color: var(--green); }
+.empty { color: var(--dim); padding: 40px 0; text-align: center; font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+section[id], h2[id] { scroll-margin-top: 20px; }
+
+@media (max-width: 1100px) { .span-8, .span-4 { grid-column: span 12; } }
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; }
+  .side { position: static; height: auto; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 18px 16px 6px; }
+  .brand, .side .group, .side .spacer { display: none; }
+  .side a.nav, .side a.jump { white-space: nowrap; }
+  main { padding: 18px 16px 60px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat .value { font-size: 26px; }
+  .span-6, .span-3 { grid-column: span 12; }
+}
+
+/* 多平台 */
+:root { --p-xhs: #eb6834; --p-douyin: #2a78d6; --p-channels: #1baf7a; }
+.view[hidden] { display: none !important; }
+.pf { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.pf::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.rel { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.rel.up { background: var(--mint-bg); color: var(--green); }
+.rel.down { background: #fbe4de; color: #a83a22; }
+.rel.flat { background: var(--line); color: var(--muted); }
+.pcards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.pcard .rows { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; }
+.kv .k { font-size: 12px; color: var(--dim); font-weight: 500; }
+.kv .v { font: 500 22px/1.2 var(--sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.cell { display: grid; gap: 3px; justify-items: end; }
+.cell .v { font-weight: 600; }
+td.na { color: var(--dim); }
+.funnel { display: grid; gap: 8px; }
+.stage { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; }
+.stage.bottle { background: #fbefd9; }
+.stage .name { font-weight: 600; font-size: 13px; }
+.stage .name small { display: block; font-weight: 500; color: var(--dim); font-size: 11px; }
+.stage .val { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.stage .val b { font-size: 16px; font-weight: 600; }
+.stage .tip { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.diag-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.verdict { font-size: 13px; color: var(--fg); background: var(--inner); border-radius: 12px; padding: 10px 14px; margin-top: 10px; }
+.note { font-size: 12px; color: var(--dim); margin-top: 8px; }
+@media (max-width: 1100px) { .pcards { grid-template-columns: 1fr; }  }
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="side" aria-label="视频数据分析导航">
+  <div class="brand"><div class="brand-name">视频数据分析</div><div class="brand-sub">小红书 · 抖音 · 视频号</div></div>
+  <a class="nav" href="#overview" data-view="overview"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1.5"/><rect x="9" y="2" width="5" height="5" rx="1.5"/><rect x="2" y="9" width="5" height="5" rx="1.5"/><rect x="9" y="9" width="5" height="5" rx="1.5"/></svg>总览</a>
+  <a class="nav" href="#compare" data-view="compare"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2" width="11" height="12" rx="2"/><path d="M2.5 6.5h11M7 6.5V14"/></svg>作品对比</a>
+  <a class="nav" href="#diagnose" data-view="diagnose"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12l-4.5 5.5V13L6.5 14V8.5z"/></svg>单条诊断</a>
+  <a class="nav" href="#patterns" data-view="patterns"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="11" r="1.5"/><circle cx="8" cy="6" r="1.5"/><circle cx="12" cy="9" r="1.5"/><path d="M2 14h12"/></svg>内容规律</a>
+  <div class="spacer"></div>
+  <a class="jump" id="jump" href="/" target="_top" hidden>返回启动台 <span aria-hidden="true">→</span></a>
+  <script>if (window.top !== window.self) document.getElementById("jump").hidden = false; // 嵌在网站里时才显示</script>
+</aside>
+<main>
+  <div class="page-head">
+    <div><div class="eyebrow" id="meta"></div><h1 id="title">视频数据分析</h1></div>
+    <select id="pick" aria-label="选择作品" hidden></select>
+  </div>
+
+  <section class="view" id="v-overview">
+    <div class="stats" id="ov-stats"></div>
+    <h2 class="sec">各平台表现 <span class="count">近 30 天</span></h2>
+    <div class="pcards" id="ov-platforms"></div>
+    <h2 class="sec">每个作品的播放 <span class="count" id="ov-count"></span></h2>
+    <section class="card">
+      <div class="card-head"><h3>各平台播放构成</h3><p>同一个作品在三个平台的播放量叠在一起</p></div>
+      <div class="panel"><div class="chart" id="c-ov-works"></div></div>
+    </section>
+  </section>
+
+  <section class="view" id="v-compare" hidden>
+    <section class="card">
+      <div class="card-head"><h3>作品 × 平台</h3><p>每格是播放 / 5 秒留存 / 涨粉。胶囊是和这个平台自己的中位数比，同平台不到 3 条时不比。点一行进入诊断</p></div>
+      <div class="panel table-panel"><table id="t-compare"></table></div>
+    </section>
+  </section>
+
+  <section class="view" id="v-diagnose" hidden>
+    <div class="tags" id="d-tags"></div>
+    <div class="pcards" id="d-funnels"></div>
+    <h2 class="sec">观众在哪一秒离开</h2>
+    <div class="grid">
+      <section class="card span-8">
+        <div class="card-head"><h3>各平台留存曲线</h3><p>每一秒还在看的观众占比。虚线是抖音给的同类作者平均</p></div>
+        <div class="panel"><div class="chart tall" id="c-d-ret"></div></div>
+      </section>
+      <section class="card span-4 accent">
+        <div class="card-head"><h3>流失最快的时刻</h3><p>每个平台掉得最快的几秒</p></div>
+        <div class="panel"><ul class="insight" id="d-drops"></ul></div>
+      </section>
+    </div>
+    <h2 class="sec">流量从哪来</h2>
+    <div class="grid" id="d-sources"></div>
+    <h2 class="sec">谁在看</h2>
+    <div class="grid" id="d-audience"></div>
+    <h2 class="sec">播放什么时候来的</h2>
+    <section class="card">
+      <div class="card-head"><h3>发布后的播放</h3><p>小红书、抖音按小时，视频号只有按天</p></div>
+      <div class="panel"><div class="chart" id="c-d-trend"></div></div>
+    </section>
+  </section>
+
+  <section class="view" id="v-patterns" hidden>
+    <div class="grid">
+      <section class="card span-8">
+        <div class="card-head"><h3>开头留得住，播放才上得去吗</h3><p>每个点是一条发布：横轴 5 秒留存，纵轴播放（对数刻度）</p></div>
+        <div class="panel"><div class="chart tall" id="c-p-scatter"></div></div>
+      </section>
+      <section class="card span-4 accent">
+        <div class="card-head"><h3>目前能看出的</h3><p>数据越多越准</p></div>
+        <div class="panel"><ul class="insight" id="p-notes"></ul></div>
+      </section>
+    </div>
+    <h2 class="sec">按时长和发布时段</h2>
+    <div class="grid">
+      <section class="card span-6"><div class="card-head"><h3>视频时长</h3><p>每档的播放中位数和 5 秒留存中位数</p></div><div class="panel table-panel"><table id="t-p-dur"></table></div></section>
+      <section class="card span-6"><div class="card-head"><h3>发布时段</h3><p>按北京时间的发布时刻分档</p></div><div class="panel table-panel"><table id="t-p-hour"></table></div></section>
+    </div>
+  </section>
+</main>
+</div>
+<script>
+const D = window.VIDEO_DATA || { works: [], platforms: {} };
+const PF = D.platforms;
+const PKEYS = Object.keys(PF);
+const charts = {};
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmt = (v, d = 0) => v == null ? "–" : Number(v).toLocaleString("zh-CN", { maximumFractionDigits: d });
+const pct = (v) => v == null ? "–" : fmt(v, 1) + "%";
+const sec = (v) => v == null ? "–" : fmt(v, 1) + "s";
+const dt = (ts) => new Date(ts).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const short = (t, n = 18) => { t = String(t || "").replace(/#\S+/g, "").trim() || String(t || ""); return t.length > n ? t.slice(0, n) + "…" : t; };
+const pcol = (k) => css("--p-" + k);
+const pfTag = (k) => `<span class="pf" style="--c:var(--p-${k})">${PF[k]}</span>`;
+const median = (a) => { a = a.filter((x) => x != null).sort((x, y) => x - y); return a.length ? (a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2) : null; };
+const posts = D.works.flatMap((w) => w.posts.map((p) => ({ ...p, work: w })));
+// 比平时：r 是「本条 / 同平台中位数」；lowerBetter 的指标反过来看
+function relChip(r, lowerBetter) {
+  if (r == null) return "";
+  const good = lowerBetter ? r < 0.9 : r > 1.1, bad = lowerBetter ? r > 1.1 : r < 0.9;
+  const d = Math.round((r - 1) * 100);
+  return `<span class="rel ${good ? "up" : bad ? "down" : "flat"}">${good ? "▲" : bad ? "▼" : "●"} ${good || bad ? (d > 0 ? "+" : "") + d + "%" : "持平"}</span>`;
+}
+
+function base() {
+  const t2 = css("--text-secondary"), grid = css("--grid");
+  return {
+    animation: false,
+    textStyle: { fontFamily: css("--font"), color: t2 },
+    grid: { left: 8, right: 16, top: 30, bottom: 8, containLabel: true },
+    tooltip: { trigger: "axis", backgroundColor: css("--surface-1"), borderColor: css("--border"), textStyle: { color: css("--text-primary") } },
+    legend: { top: 0, left: 0, icon: "circle", itemWidth: 8, itemHeight: 8, textStyle: { color: t2 } },
+    xAxis: { axisLine: { lineStyle: { color: grid } }, axisTick: { show: false }, axisLabel: { color: css("--text-muted") }, splitLine: { show: false } },
+    yAxis: { axisLine: { show: false }, axisLabel: { color: css("--text-muted") }, splitLine: { lineStyle: { color: grid } } },
+  };
+}
+function draw(id, opt) {
+  const el = document.getElementById(id);
+  if (charts[id] && charts[id].getDom() !== el) charts[id] = null;
+  if (!charts[id]) { el.innerHTML = ""; charts[id] = echarts.init(el, null, { renderer: "svg" }); }
+  charts[id].setOption(opt, true);
+}
+function empty(id, msg) {
+  charts[id]?.dispose(); delete charts[id];
+  document.getElementById(id).innerHTML = `<div class="empty">${msg}</div>`;
+}
+function hbar(id, rows, color) {
+  if (!rows?.length) return empty(id, "这个平台没给这项数据");
+  const b = base(), r = rows.slice(0, 8).reverse();
+  draw(id, { ...b,
+    grid: { ...b.grid, top: 4, right: 48 },
+    tooltip: { ...b.tooltip, trigger: "item", formatter: (p) => `${esc(p.name)}：${fmt(p.value, 1)}%` },
+    xAxis: { ...b.xAxis, type: "value", show: false },
+    yAxis: { ...b.yAxis, type: "category", data: r.map((x) => x[0]), splitLine: { show: false }, axisLabel: { color: css("--text-secondary") } },
+    series: [{ type: "bar", data: r.map((x) => +x[1].toFixed(1)), barMaxWidth: 12, itemStyle: { color, borderRadius: [0, 4, 4, 0] },
+      label: { show: true, position: "right", color: css("--text-secondary"), formatter: "{c}%" } }],
+  });
+}
+
+/* ---------- 总览 ---------- */
+function renderOverview() {
+  const since = Date.now() - 30 * 86400e3;
+  const recent = posts.filter((p) => p.post_time >= since);
+  const sum = (arr, k) => arr.reduce((s, p) => s + (p.latest[k] || 0), 0);
+  const works = D.works.filter((w) => w.first_post_time >= since);
+  document.getElementById("ov-stats").innerHTML = [
+    ["近 30 天作品", fmt(works.length), `<small>条，发布 ${recent.length} 次</small>`],
+    ["全平台播放", fmt(sum(recent, "views"))],
+    ["全平台涨粉", fmt(sum(recent, "new_fans"))],
+    ["平均每个作品发到", fmt(works.length ? recent.length / works.length : null, 1), "<small>个平台</small>"],
+  ].map(([l, v, s], i) => `<div class="stat${i === 1 ? " accent" : ""}"><div class="label">${l}</div><div class="value">${v}${s || ""}</div></div>`).join("");
+  document.getElementById("ov-platforms").innerHTML = PKEYS.map((k) => {
+    const g = recent.filter((p) => p.platform === k);
+    const med = (f) => median(g.map(f));
+    return `<section class="card pcard"><div class="card-head">${pfTag(k)}<p>${g.length} 条视频</p></div><div class="panel"><div class="rows">
+      <div class="kv"><div class="k">播放</div><div class="v">${fmt(sum(g, "views"))}</div></div>
+      <div class="kv"><div class="k">涨粉</div><div class="v">${fmt(sum(g, "new_fans"))}</div></div>
+      <div class="kv"><div class="k">5 秒留存中位数</div><div class="v">${pct(med((p) => p.latest.finish5s_rate))}</div></div>
+      <div class="kv"><div class="k">完播率中位数</div><div class="v">${pct(med((p) => p.latest.finish_rate))}</div></div>
+      <div class="kv"><div class="k">互动率中位数</div><div class="v">${pct(med((p) => p.derived.interaction_rate))}</div></div>
+      <div class="kv"><div class="k">千次播放涨粉</div><div class="v">${fmt(med((p) => p.derived.fans_per_k), 1)}</div></div>
+    </div></div></section>`;
+  }).join("");
+  document.getElementById("ov-count").textContent = works.length;
+  const ws = works.slice(0, 12).reverse();
+  if (!ws.length) return empty("c-ov-works", "近 30 天没有作品");
+  const b = base();
+  draw("c-ov-works", { ...b,
+    tooltip: { ...b.tooltip, axisPointer: { type: "shadow" }, valueFormatter: (v) => fmt(v) },
+    xAxis: { ...b.xAxis, type: "category", data: ws.map((w) => short(w.title, 10)), axisLabel: { color: css("--text-muted"), interval: 0, rotate: ws.length > 6 ? 30 : 0 } },
+    yAxis: { ...b.yAxis, type: "value" },
+    series: PKEYS.map((k) => ({ name: PF[k], type: "bar", stack: "v", barMaxWidth: 28,
+      itemStyle: { color: pcol(k), borderColor: css("--inner"), borderWidth: 1 },
+      data: ws.map((w) => w.posts.find((p) => p.platform === k)?.latest.views ?? null) })),
+  });
+}
+
+/* ---------- 作品对比 ---------- */
+function renderCompare() {
+  const cell = (p) => p ? `<div class="cell"><span class="v">${fmt(p.latest.views)}</span>${relChip(p.rel.views)}
+      <span>${pct(p.latest.finish5s_rate)} ${relChip(p.rel.finish5s_rate)}</span><span>涨粉 ${fmt(p.latest.new_fans)}</span></div>` : "";
+  document.getElementById("t-compare").innerHTML = `<thead><tr><th>作品</th><th>首发</th>${PKEYS.map((k) => `<th>${PF[k]}</th>`).join("")}<th>合计播放</th></tr></thead><tbody>` +
+    D.works.map((w) => `<tr data-id="${esc(w.work_id)}"><td>${esc(short(w.title, 28))}</td><td>${dt(w.first_post_time)}</td>${PKEYS.map((k) => {
+      const p = w.posts.find((x) => x.platform === k); return `<td class="${p ? "" : "na"}">${p ? cell(p) : "未发"}</td>`; }).join("")}<td><b>${fmt(w.total_views)}</b></td></tr>`).join("") + "</tbody>";
+  document.querySelectorAll("#t-compare tbody tr").forEach((tr) => tr.onclick = () => { pick.value = tr.dataset.id; location.hash = "diagnose"; });
+}
+
+/* ---------- 单条诊断 ---------- */
+// 漏斗：按观众的观看顺序，每一步对应一类要改的东西
+const STAGES = [
+  { key: "cover_click_rate", name: "点进来", sub: "封面点击率", tip: "改封面和标题：信息点前置、字更大、给出具体收益" },
+  { key: "finish5s_rate", name: "留下来", sub: "5 秒留存", tip: "改开头 3 秒：先给结论或冲突，去掉寒暄和片头", alt: "exit2s_rate" },
+  { key: "view_ratio", name: "看下去", sub: "看了全片的几成", tip: "压节奏：删掉重复和铺垫，每 5–8 秒给一个新信息点", derived: true },
+  { key: "finish_rate", name: "看完", sub: "完播率", tip: "缩短时长或在结尾前埋一个钩子，比如结尾才揭晓答案" },
+  { key: "interaction_rate", name: "有反应", sub: "互动率", tip: "抛一个能回答的问题，引导评论和收藏", derived: true },
+  { key: "fans_per_k", name: "转化", sub: "每千次播放涨粉", tip: "结尾说清楚关注能得到什么，强化系列感和人设", derived: true },
+];
+function stageVal(p, s) {
+  if (s.key === "finish5s_rate" && p.latest.finish5s_rate == null && p.latest.exit2s_rate != null)
+    return { v: p.latest.exit2s_rate, label: "快速划走率", r: p.rel.exit2s_rate, lower: true };
+  const v = s.derived ? p.derived[s.key] : p.latest[s.key];
+  return { v, r: p.rel[s.key], label: s.sub };
+}
+function funnelCard(p) {
+  let bottle = null;
+  const rows = STAGES.map((s) => {
+    const { v, r, label, lower } = stageVal(p, s);
+    if (v == null) return `<div class="stage"><div class="name">${s.name}<small>${label}</small></div><div class="val na">这个平台没有这项数据</div></div>`;
+    const bad = r != null && (lower ? r > 1.15 : r < 0.85);
+    if (bad && !bottle) bottle = s;
+    const shown = s.key === "fans_per_k" ? fmt(v, 1) : pct(v);
+    return `<div class="stage${bad && bottle === s ? " bottle" : ""}"><div class="name">${s.name}<small>${label}</small></div><div class="val"><b>${shown}</b>${relChip(r, lower)}</div>${bad && bottle === s ? `<div class="tip">${s.tip}</div>` : ""}</div>`;
+  }).join("");
+  const hasBase = Object.values(p.rel).some((x) => x != null);
+  const verdict = !hasBase ? `这个平台的视频还不到 3 条，先只看数值，暂不判断高低`
+    : bottle ? `最先掉下去的是「${bottle.name}」：${bottle.tip}` : `每一步都不低于平时，这条在${PF[p.platform]}表现正常或更好`;
+  return `<section class="card pcard"><div class="card-head diag-head">${pfTag(p.platform)}<span class="eyebrow">播放 ${fmt(p.latest.views)} · 涨粉 ${fmt(p.latest.new_fans)} · 发布 ${dt(p.post_time)}</span></div>
+    <div class="panel"><div class="funnel">${rows}</div><div class="verdict">${verdict}</div></div></section>`;
+}
+function renderDiagnose() {
+  const w = D.works.find((x) => x.work_id === pick.value) || D.works[0];
+  if (!w) return;
+  document.getElementById("title").textContent = short(w.title, 40);
+  document.getElementById("meta").textContent = `首发于 ${dt(w.first_post_time)}${w.duration_sec ? " · 时长 " + fmt(w.duration_sec) + " 秒" : ""} · 发到 ${w.posts.length} 个平台`;
+  const tags = [...new Set(w.posts.flatMap((p) => (p.tags || "").split(",").filter(Boolean)))];
+  document.getElementById("d-tags").innerHTML = tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join("");
+  document.getElementById("d-funnels").innerHTML = w.posts.map(funnelCard).join("");
+
+  // 留存曲线：一张图，各平台一条线，抖音同类平均用虚线
+  const withRet = w.posts.filter((p) => p.retention.length > 1);
+  const drops = document.getElementById("d-drops");
+  if (!withRet.length) { empty("c-d-ret", "平台还没出这条的留存数据（通常发布次日更新）"); drops.innerHTML = ""; }
+  else {
+    const b = base();
+    const series = withRet.map((p) => ({ name: PF[p.platform], type: "line", data: p.retention, showSymbol: p.retention.length < 12, symbolSize: 8,
+      lineStyle: { width: 2, color: pcol(p.platform) }, itemStyle: { color: pcol(p.platform), borderColor: css("--inner"), borderWidth: 2 } }));
+    withRet.filter((p) => p.benchmark.length).forEach((p) => series.push({ name: "抖音同类作者平均", type: "line", data: p.benchmark, showSymbol: false,
+      lineStyle: { width: 1.5, type: "dashed", color: css("--text-muted") }, itemStyle: { color: css("--text-muted") } }));
+    draw("c-d-ret", { ...b,
+      tooltip: { ...b.tooltip, valueFormatter: (v) => fmt(v, 1) + "%" },
+      xAxis: { ...b.xAxis, type: "value", name: "秒", nameTextStyle: { color: css("--text-muted") }, max: Math.max(...withRet.map((p) => p.retention.at(-1)[0])) },
+      yAxis: { ...b.yAxis, type: "value", max: 100, axisLabel: { color: css("--text-muted"), formatter: "{value}%" } },
+      series });
+    drops.innerHTML = withRet.map((p) => {
+      const r = p.retention, d = r.slice(1).map((x, i) => [r[i][0], x[0], r[i][1] - x[1], (r[i][1] - x[1]) / Math.max(1, x[0] - r[i][0])]);
+      const top = d.sort((a, b) => b[3] - a[3]).slice(0, 2);
+      const at5 = r.find((x) => x[0] === 5)?.[1];
+      return `<li>${pfTag(p.platform)}：${top.map(([a, b2, v]) => `<b>${a}→${b2}s</b> 掉 ${fmt(v, 1)} 个点`).join("，")}${at5 != null ? `；第 5 秒还剩 <b>${fmt(at5, 0)}%</b>` : ""}${r.length < 12 ? "（视频号只给了几个点，精度有限）" : ""}</li>`;
+    }).join("");
+  }
+
+  document.getElementById("d-sources").innerHTML = w.posts.map((p) => `<section class="card span-4"><div class="card-head">${pfTag(p.platform)}<p>观看来源占比</p></div><div class="panel"><div class="chart" id="c-src-${p.platform}" style="height:220px"></div></div></section>`).join("");
+  w.posts.forEach((p) => hbar(`c-src-${p.platform}`, p.sources, pcol(p.platform)));
+  const dims = [["gender", "性别"], ["age", "年龄"], ["city", "地域"]];
+  const withAud = w.posts.filter((p) => Object.keys(p.audience).length);
+  document.getElementById("d-audience").innerHTML = withAud.length ? withAud.flatMap((p) => dims.map(([d, n]) => `<section class="card span-4"><div class="card-head">${pfTag(p.platform)}<p>${n} · 观众占比 %</p></div><div class="panel"><div class="chart" id="c-aud-${p.platform}-${d}" style="height:200px"></div></div></section>`)).join("")
+    : `<section class="card span-12"><div class="panel empty">这几个平台都还没出这条的观众画像</div></section>`;
+  withAud.forEach((p) => dims.forEach(([d]) => hbar(`c-aud-${p.platform}-${d}`, p.audience[d], pcol(p.platform))));
+
+  const tr = w.posts.map((p) => ({ p, pts: p.trend.hour_views || p.trend.day_views || [], grain: p.trend.hour_views ? "小时" : "天" })).filter((x) => x.pts.length);
+  if (!tr.length) empty("c-d-trend", "暂无趋势数据");
+  else {
+    const b = base();
+    draw("c-d-trend", { ...b,
+      tooltip: { ...b.tooltip, valueFormatter: (v) => fmt(v) },
+      xAxis: { ...b.xAxis, type: "time" },
+      yAxis: { ...b.yAxis, type: "value" },
+      series: tr.map(({ p, pts, grain }) => ({ name: `${PF[p.platform]}（每${grain}）`, type: "line", data: pts, showSymbol: grain === "天", symbolSize: 8, step: grain === "天" ? "end" : false,
+        lineStyle: { width: 2, color: pcol(p.platform) }, itemStyle: { color: pcol(p.platform) } })),
+    });
+  }
+}
+
+/* ---------- 内容规律 ---------- */
+function bucketTable(id, label, key) {
+  const groups = {};
+  posts.filter((p) => p.latest.views).forEach((p) => { const k = key(p); if (k) (groups[k[0]] ??= { order: k[1], list: [] }).list.push(p); });
+  const rows = Object.entries(groups).sort((a, b) => a[1].order - b[1].order);
+  document.getElementById(id).innerHTML = rows.length ? `<thead><tr><th>${label}</th><th>发布数</th><th>播放中位数</th><th>5 秒留存中位数</th><th>千次播放涨粉</th></tr></thead><tbody>` +
+    rows.map(([k, g]) => `<tr><td>${k}</td><td>${g.list.length}</td><td>${fmt(median(g.list.map((p) => p.latest.views)))}</td><td>${pct(median(g.list.map((p) => p.latest.finish5s_rate)))}</td><td>${fmt(median(g.list.map((p) => p.derived.fans_per_k)), 1)}</td></tr>`).join("") + "</tbody>"
+    : `<tbody><tr><td class="empty">暂无数据</td></tr></tbody>`;
+}
+function renderPatterns() {
+  const pts = posts.filter((p) => p.latest.views > 0 && p.latest.finish5s_rate != null);
+  if (pts.length < 2) empty("c-p-scatter", "有 5 秒留存数据的发布还太少");
+  else {
+    const b = base();
+    draw("c-p-scatter", { ...b,
+      tooltip: { ...b.tooltip, trigger: "item", formatter: (x) => `${esc(short(x.data[2], 22))}<br>${x.seriesName} · 5 秒留存 ${fmt(x.data[0], 1)}% · 播放 ${fmt(x.data[1])}` },
+      xAxis: { ...b.xAxis, type: "value", name: "5 秒留存 %", nameLocation: "middle", nameGap: 26, nameTextStyle: { color: css("--text-muted") }, scale: true, splitLine: { lineStyle: { color: css("--grid") } } },
+      yAxis: { ...b.yAxis, type: "log" },
+      series: PKEYS.map((k) => ({ name: PF[k], type: "scatter", symbolSize: 12, itemStyle: { color: pcol(k), borderColor: css("--inner"), borderWidth: 2 },
+        data: pts.filter((p) => p.platform === k).map((p) => [p.latest.finish5s_rate, p.latest.views, p.title]) })),
+    });
+  }
+  const dur = (p) => { const s = p.duration_sec; if (!s) return null; return s < 30 ? ["30 秒内", 0] : s < 60 ? ["30–60 秒", 1] : s < 120 ? ["1–2 分钟", 2] : ["2 分钟以上", 3]; };
+  const hour = (p) => { const h = new Date(p.post_time).getHours(); return h < 6 ? ["凌晨 0–6 点", 0] : h < 12 ? ["上午 6–12 点", 1] : h < 18 ? ["下午 12–18 点", 2] : ["晚上 18–24 点", 3]; };
+  bucketTable("t-p-dur", "时长", dur);
+  bucketTable("t-p-hour", "时段", hour);
+  const multi = D.works.filter((w) => w.posts.length > 1 && w.posts.every((p) => p.latest.views));
+  const best = {};
+  multi.forEach((w) => { const top = w.posts.reduce((a, b) => (a.rel.views ?? 0) >= (b.rel.views ?? 0) ? a : b); if (top.rel.views != null) best[top.platform] = (best[top.platform] || 0) + 1; });
+  const notes = [
+    `共 ${posts.length} 条发布、${D.works.length} 个作品。每个平台至少 3 条、总共 20 条以上，这里的规律才比较可信`,
+    pts.length >= 4 ? `5 秒留存越高播放越高吗？看左图的点是否往右上走` : `等有 5 秒留存的发布多一些，左图才能看出开头和播放的关系`,
+    Object.keys(best).length ? `同一作品多平台发布时，相对表现最好的平台：${Object.entries(best).map(([k, n]) => `${PF[k]} ${n} 次`).join("，")}` : `多平台同发的作品还少，暂时比不出哪个平台更吃你的内容`,
+    `选题标签还没自动打上，之后加上就能按选题比较`,
+  ];
+  document.getElementById("p-notes").innerHTML = notes.map((t) => `<li>${t}</li>`).join("");
+}
+
+/* ---------- 切换视图 ---------- */
+const pick = document.getElementById("pick");
+const TITLES = { overview: "全平台总览", compare: "作品对比", diagnose: "", patterns: "内容规律" };
+function route() {
+  const v = TITLES[location.hash.slice(1)] !== undefined ? location.hash.slice(1) : "overview";
+  document.querySelectorAll(".view").forEach((s) => s.hidden = s.id !== "v-" + v);
+  document.querySelectorAll(".side a.nav").forEach((a) => a.classList.toggle("on", a.dataset.view === v));
+  pick.hidden = v !== "diagnose";
+  if (v !== "diagnose") {
+    document.getElementById("title").textContent = TITLES[v];
+    document.getElementById("meta").textContent = `数据更新于 ${dt(D.generated_at)}`;
+  }
+  ({ overview: renderOverview, compare: renderCompare, diagnose: renderDiagnose, patterns: renderPatterns })[v]();
+  Object.values(charts).forEach((c) => c && c.resize());
+}
+if (!D.works.length) document.querySelector("main").innerHTML = '<p class="empty">还没有数据，先运行 update.sh</p>';
+else {
+  pick.innerHTML = D.works.map((w) => `<option value="${esc(w.work_id)}">${esc(short(w.title, 26))}（${w.posts.map((p) => PF[p.platform]).join("·")}）</option>`).join("");
+  pick.value = (D.works.find((w) => w.posts.length > 1 && w.posts.some((p) => p.retention.length > 1)) || D.works[0]).work_id;
+  pick.onchange = () => route();
+  window.addEventListener("hashchange", route);
+  window.addEventListener("resize", () => Object.values(charts).forEach((c) => c && c.resize()));
+  route();
+}
+</script>
+</body>
+</html>
