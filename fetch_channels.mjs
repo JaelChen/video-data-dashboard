@@ -9,7 +9,11 @@ const task = await taskSpace("multi-platform video data");
 const page = task.page("p1");
 await page.cdp("Network.enable", {});
 await page.goto("https://channels.weixin.qq.com/platform/statistic/post");
-await page.waitForTimeout(6000);
+// 登录过期时页面停在扫码页，等不到这个按钮；网慢时也最多等 20 秒
+await page.waitForSelector('text="单篇视频"', { timeout: 20000 }).catch(() => {
+  throw new Error("视频号助手没登录：请在 ego lite 里用微信扫码登录视频号助手");
+});
+await page.waitForTimeout(1000);
 await page.events();
 await page.click('text="单篇视频"', { label: "open single video tab" });
 await page.waitForTimeout(4000);
